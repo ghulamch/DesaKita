@@ -137,18 +137,23 @@ class SetupController extends Controller
             // 3. Set to Production Mode & Security Key
             $envFile = base_path('.env');
             if (File::exists($envFile)) {
-                Artisan::call('key:generate', ['--force' => true]);
+                // Di hosting, kita lewati key:generate via Artisan jika sudah ada key
+                // atau kita biarkan aplikasi pakai key yang sudah ada dari step 1
                 $envContent = File::get($envFile);
                 $envContent = str_replace('APP_ENV=local', 'APP_ENV=production', $envContent);
                 $envContent = str_replace('APP_DEBUG=true', 'APP_DEBUG=false', $envContent);
                 File::put($envFile, $envContent);
             }
 
-            // 4. Link Storage & Optimize for Production
-            Artisan::call('storage:link', ['--force' => true]);
-            Artisan::call('config:cache');
-            Artisan::call('route:cache');
-            Artisan::call('view:cache');
+            // 4. Link Storage & Optimize (Hosting Friendly)
+            try {
+                // Cara manual buat shortcut, tanpa panggil exec()
+                if (function_exists('symlink') && !file_exists(public_path('storage'))) {
+                    @\symlink(storage_path('app/public'), public_path('storage'));
+                }
+            } catch (\Exception $e) {
+                // Abaikan jika gagal atau dilarang hosting
+            }
 
             // 5. Mark as installed
             File::put(storage_path('installed'), date('Y-m-d H:i:s'));
